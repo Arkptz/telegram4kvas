@@ -1,3 +1,4 @@
+from re import L
 from aiogram import Dispatcher, Bot
 from aiogram.filters import CommandStart
 from config import SETTINGS
@@ -32,6 +33,10 @@ async def start(
     )
 
 
+def main():
+    dp.run_polling(bot)
+
+
 if __name__ == "__main__":
 
-    dp.run_polling(bot)
+    main()

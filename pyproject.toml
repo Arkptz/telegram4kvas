@@ -84,6 +84,8 @@ max-line-length = 120
 [tool.pylint.MASTER]
 init-hook = 'import sys; sys.path.append("./telegram4kvas")'
 
+[tool.poetry.scripts]
+start_bot = 'telegram4kvas.main:main'
 
 [build-system]
 requires = ["poetry-core"]
