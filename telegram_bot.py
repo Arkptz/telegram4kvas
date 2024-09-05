@@ -14,7 +14,7 @@ from telebot.formatting import mbold, mcode, mlink
 from telebot.handler_backends import BaseMiddleware, CancelUpdate
 from telebot.types import InputFile
 
-import telegram_bot_config
+import telegram4kvas.config as config
 
 # Настройка логирования
 logger = logging.getLogger(name="telegram4kvas")
@@ -33,7 +33,7 @@ logger.addHandler(handler)
 user_states = {}
 
 bot = telebot.TeleBot(
-    telegram_bot_config.token,
+    config.token,
     use_class_middlewares=True,
 )
 
@@ -44,13 +44,8 @@ class Middleware(BaseMiddleware):
 
     def pre_process(self, message: types.Message, data: dict):
         logger.debug("Processing message from %s", message.from_user.username)
-        if (
-            message.from_user.username not in telegram_bot_config.usernames
-            and message.from_user.id not in telegram_bot_config.userid
-        ):
-            logger.warning(
-                "Unauthorized access attempt by %s", message.from_user.username
-            )
+        if message.from_user.username not in config.usernames and message.from_user.id not in config.userid:
+            logger.warning("Unauthorized access attempt by %s", message.from_user.username)
             bot.send_message(message.chat.id, "Вы не авторизованы")
 
             if message.from_user.username == None:
@@ -58,8 +53,10 @@ class Middleware(BaseMiddleware):
             else:
                 username = f"@{message.from_user.username}"
 
-            for id in telegram_bot_config.userid:
-                bot.send_message(id, f"Попытка неавторизованного доступа, username: {username}, UserID: {message.chat.id}")
+            for id in config.userid:
+                bot.send_message(
+                    id, f"Попытка неавторизованного доступа, username: {username}, UserID: {message.chat.id}"
+                )
             return CancelUpdate()
 
     def post_process(self, message, data, exception):
@@ -139,9 +136,7 @@ def service_message(message: types.Message):
 @bot.message_handler(regexp="Управление подключениями", chat_types=["private"])
 def connections_message(message: types.Message):
     try:
-        logger.info(
-            "User %s requested connection management", message.from_user.username
-        )
+        logger.info("User %s requested connection management", message.from_user.username)
         keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
         buttons = [
             types.KeyboardButton("Список интерфейсов"),
@@ -210,38 +205,6 @@ def custom_command_prompt(message: types.Message):
         bot.send_message(message.chat.id, "Произошла ошибка, попробуйте позже.")
 
 
-def clean_string(text: str) -> str:
-    return (
-        text.replace("-", "")
-        .replace("[33m", "")
-        .replace("[m", "")
-        .replace("[1;32m", "")
-        .replace("[1;31m", "")
-        .replace("[7D", "")
-        .replace("[8D", "")
-        .replace("[10D", "")
-        .replace("[9D", "")
-        .replace("[11D", "")
-        .replace("[6D", "")
-        .replace("[12D", "")
-        .replace("[1;31m", "")
-        .replace("[36m", "")
-        .replace("[14D", "")
-        .replace("[1;37m", "")
-    )
-
-
-def clean_string_interfaces(text: str) -> str:
-    return (
-        text.replace("-", "")
-        .replace("[36m", "")
-        .replace("[m", "")
-        .replace("[8D", "")
-        .replace("[1;32m", "")
-        .replace("[9D", "")
-        .replace("[1;31m", "")
-    )
-
 def send_long_message(output, message: types.Message):
     if len(output) > 4090:
         for x in range(0, len(output), 4090):
@@ -258,13 +221,12 @@ def send_long_message(output, message: types.Message):
             parse_mode="MarkdownV2",
         )
 
+
 def scan_interfaces(param="Q"):
     try:
         logger.info("Scanning interfaces with parameter: %s", param)
         if param == "no_shadowsocks":
-            command = [
-                f'echo "Q" | kvas vpn set | grep -v "shadowsocks" | grep "Интерфейс"'
-            ]
+            command = [f'echo "Q" | kvas vpn set | grep -v "shadowsocks" | grep "Интерфейс"']
         else:
             command = [f'echo "{param}" | kvas vpn set | grep "Интерфейс"']
         with tempfile.TemporaryFile() as tempf:
@@ -293,75 +255,12 @@ def make_keyboard_interfaces(list_interfaces):
 
         keyboard_interfaces = types.InlineKeyboardMarkup()
         for i in range(0, len(interface_next)):
-            keyboard_interfaces.add(
-                types.InlineKeyboardButton(text=interface_next[i], callback_data=str(i))
-            )
+            keyboard_interfaces.add(types.InlineKeyboardButton(text=interface_next[i], callback_data=str(i)))
 
         return keyboard_interfaces
     except Exception as e:
         logger.exception("Error in make_keyboard_interfaces: %s", str(e))
         return types.InlineKeyboardMarkup()  # Вернём пустую клавиатуру в случае ошибки
-
-
-def vless(url):
-    try:
-        logger.info("Creating XRay config from VLESS URL")
-        replace_symbol = "[\[|'|\]]"
-        dict_str = parse_qs(urlparse(url).query)
-        dict_netloc = {}
-        dict_netloc["id"] = re.split("@|:|\n", (urlparse(url).netloc))[0]
-        dict_netloc["server"] = re.split("@|:|\n", (urlparse(url).netloc))[1]
-        dict_netloc["port"] = re.split("@|:|\n", (urlparse(url).netloc))[2]
-        dict_result = {**dict_str, **dict_netloc}
-        get_routerip = '/opt/sbin/ip a | grep ": br0:" -A4 | grep "inet " | tr -s " " | cut -d" " -f3 | cut -d"/" -f1'
-        routerip = (
-            str(subprocess.check_output(get_routerip, shell=True))
-            .replace("b", "")
-            .replace("'", "")
-            .replace("\n", "")
-        )
-
-        if "flow" not in dict_result:
-            dict_result["flow"] = ""
-        if "sid" not in dict_result:
-            dict_result["sid"] = ""
-
-        json_data = (
-            '{"log": {"loglevel": "info"},"routing": {"rules": [],"domainStrategy": "AsIs"},'
-            '"inbounds": [{"listen":"'
-            + str(routerip)
-            + '","port": "1081","protocol": "socks"}],'
-            '"outbounds": [{"tag": "vless","protocol": "vless","settings": {"vnext": ['
-            '{"address":"'
-            + re.sub(replace_symbol, "", str(dict_result["server"]))
-            + '",'
-            '"port":'
-            + re.sub(replace_symbol, "", str(dict_result["port"]))
-            + ',"users": ['
-            '{"id":"' + re.sub(replace_symbol, "", str(dict_result["id"])) + '",'
-            '"flow":"' + re.sub(replace_symbol, "", str(dict_result["flow"])) + '",'
-            '"encryption": "none"}]}]},"streamSettings": {'
-            '"network":"' + re.sub(replace_symbol, "", str(dict_result["type"])) + '",'
-            '"security":"'
-            + re.sub(replace_symbol, "", str(dict_result["security"]))
-            + '",'
-            '"realitySettings": {'
-            '"publicKey":"' + re.sub(replace_symbol, "", str(dict_result["pbk"])) + '",'
-            '"fingerprint":"'
-            + re.sub(replace_symbol, "", str(dict_result["fp"]))
-            + '",'
-            '"serverName":"'
-            + re.sub(replace_symbol, "", str(dict_result["sni"]))
-            + '",'
-            '"shortId":"' + re.sub(replace_symbol, "", str(dict_result["sid"])) + '",'
-            '"spiderX":"' + re.sub(replace_symbol, "", str(dict_result["spx"])) + '"'
-            '},"tcpSettings": {"header": {"type": "none"}}}}]}'
-        )
-
-        with open("/opt/etc/xray/config.json", "w") as file:
-            file.write(json_data)
-    except Exception as e:
-        logger.exception("Error in vless function: %s", str(e))
 
 
 @bot.message_handler(regexp="Установить XRay", chat_types=["private"])
@@ -425,12 +324,8 @@ def vpn_set_prompt(message: types.Message):
 def handle_vpn_set(call):
     try:
         interface_num = int(call.data) + 2
-        logger.info(
-            "User %s selected interface %d", call.from_user.username, interface_num
-        )
-        bot.edit_message_reply_markup(
-            call.message.chat.id, message_id=call.message.message_id, reply_markup=None
-        )
+        logger.info("User %s selected interface %d", call.from_user.username, interface_num)
+        bot.edit_message_reply_markup(call.message.chat.id, message_id=call.message.message_id, reply_markup=None)
 
         bot.send_message(
             call.message.chat.id,
@@ -601,17 +496,13 @@ def list_hosts(message: types.Message):
             send_long_message(response, message)
     except Exception as e:
         logger.exception("Error in list_hosts: %s", str(e))
-        bot.send_message(
-            message.chat.id, "Произошла ошибка при получении списка хостов."
-        )
+        bot.send_message(message.chat.id, "Произошла ошибка при получении списка хостов.")
 
 
 @bot.message_handler(regexp="Очистить список", chat_types=["private"])
 def clear_hosts(message: types.Message):
     try:
-        logger.info(
-            "User %s requested to clear the list of hosts", message.from_user.username
-        )
+        logger.info("User %s requested to clear the list of hosts", message.from_user.username)
         bot.send_message(
             message.chat.id,
             "Если вы уверены, что хотите удалить все хосты, отправьте /removeall",
@@ -629,13 +520,9 @@ def remove_all_hosts(message: types.Message):
             subprocess.Popen(['echo "Y" | kvas purge'], shell=True, stdout=tempf).wait()
             tempf.seek(0)
             output = clean_string(
-                tempf.read()
-                .decode("utf-8")
-                .replace("Список разблокировки будет полностью очищен. Уверены?", "")
+                tempf.read().decode("utf-8").replace("Список разблокировки будет полностью очищен. Уверены?", "")
             )
-            bot.send_message(
-                message.chat.id, mcode("\n" + output + "\n"), parse_mode="MarkdownV2"
-            )
+            bot.send_message(message.chat.id, mcode("\n" + output + "\n"), parse_mode="MarkdownV2")
 
         backup_file = InputFile("/opt/etc/.kvas/backup/hosts.list")
         bot.send_document(message.chat.id, backup_file)
@@ -697,9 +584,7 @@ def export_hosts(message: types.Message):
 @bot.message_handler(regexp="Перезагрузить роутер", chat_types=["private"])
 def reboot_router(message: types.Message):
     try:
-        logger.warning(
-            "User %s requested to reboot the router", message.from_user.username
-        )
+        logger.warning("User %s requested to reboot the router", message.from_user.username)
         bot.send_message(message.chat.id, "Роутер перезагружается")
         logger.warning("Rebooting the router...")
         subprocess.Popen(["reboot"])
@@ -709,8 +594,7 @@ def reboot_router(message: types.Message):
 
 
 @bot.message_handler(
-    func=lambda message: message.chat.id in user_states
-    and user_states[message.chat.id],
+    func=lambda message: message.chat.id in user_states and user_states[message.chat.id],
     chat_types=["private"],
 )
 def custom_command(message: types.Message):
@@ -734,9 +618,7 @@ def custom_command(message: types.Message):
         keyboard.add(*buttons)
         if message.text in interrupt_command:
             user_states.pop(message.chat.id)
-            bot.send_message(
-                message.chat.id, "Вы вышли из режима терминала.", reply_markup=keyboard
-            )
+            bot.send_message(message.chat.id, "Вы вышли из режима терминала.", reply_markup=keyboard)
         else:
             with tempfile.TemporaryFile() as tempf:
                 output_proc = subprocess.Popen([message.text], shell=True, stdout=tempf)
@@ -817,30 +699,29 @@ def run_reset(message: types.Message):
 @bot.message_handler(regexp="Обновить бота", chat_types=["private"])
 def update_bot(message: types.Message):
     try:
-        logger.warning(
-            "User %s requested to update the bot", message.from_user.username
-        )
-        
+        logger.warning("User %s requested to update the bot", message.from_user.username)
+
         response = requests.get("https://api.github.com/repos/dnstkrv/telegram4kvas/releases/latest")
         if response.status_code != 200:
             raise Exception(f"Failed to retrieve latest version: {response.text}")
-        version_now = telegram_bot_config.version
+        version_now = config.version
         version_new = response.json()["tag_name"]
         changelog = response.json()["body"]
 
         if version_now != version_new:
-            bot.send_message(message.chat.id, f"Текущая версия бота: {version_now}, устанавливается версия: {version_new}")
+            bot.send_message(
+                message.chat.id, f"Текущая версия бота: {version_now}, устанавливается версия: {version_new}"
+            )
             if changelog:
                 send_long_message(changelog, message)
             os.system(
-            "curl -o /opt/upgrade.sh https://raw.githubusercontent.com/dnstkrv/telegram4kvas/main/upgrade.sh && sh /opt/upgrade.sh && rm /opt/upgrade.sh"
+                "curl -o /opt/upgrade.sh https://raw.githubusercontent.com/dnstkrv/telegram4kvas/main/upgrade.sh && sh /opt/upgrade.sh && rm /opt/upgrade.sh"
             )
             bot.send_message(message.chat.id, "Запущено обновление бота")
         else:
             bot.send_message(message.chat.id, f"Текущая версия актуальна ({version_now})")
-       
+
         logger.warning("The bot has started updating")
-        
 
     except Exception as e:
         logger.exception("Error in update_bot: %s", str(e))

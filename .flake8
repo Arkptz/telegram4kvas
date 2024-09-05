@@ -1,0 +1,49 @@
+[flake8]
+ignore =
+    # Class attribute shadowing a Python builtin
+    A003,
+    # The module is shadowing a Python builtin module "trace"\"logging"
+    D200,
+    # First line should end with a period
+    D400,
+    # Function name should be lowercase
+    N802,
+    # Module is shadowing a Python builtin module
+    A005,
+    # Unnecessary dict call - rewrite as a literal
+    C408,
+    # Line break before binary operator
+    W503,
+    # Star-arg unpacking after a keyword argument is strongly discouraged
+    B026,
+    # Function is too complex
+    C901,
+    # 1 blank line required between summary line and description
+    D205,
+    # First line should be in imperative mood
+    D401,
+    # Exception name should be named with an Error suffix
+    N818,
+    D100,
+    D102,
+    D103,
+    D101,
+    B008,
+    # multiple statements on one line (def) - black conflict
+    E704
+
+per-file-ignores=
+    # Standard set of ignores for __init__.py to maintain code quality and readability
+    # F401: Ignore "module imported but unused" (often used for package initialization)
+    # F403: Ignore "from module import * used" (common in __init__.py for exposing API)
+    # WPS235: Ignore "found too many public attributes" (acceptable in __init__.py)
+    # WPS347: Ignore "forbid usage of multiline strings" (may be used for docstrings)
+    # WPS436: Ignore "found protected attribute usage" (acceptable in __init__.py)
+    src/*/__init__.py: F401,F403,WPS235,WPS347,WPS436
+
+max-line-length = 120
+exclude =
+    .git,
+    __pycache__,
+    build,
+    dist

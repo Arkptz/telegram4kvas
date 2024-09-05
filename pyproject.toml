@@ -1,0 +1,90 @@
+[tool.poetry]
+name = "telegram4kvas"
+version = "0.1.0"
+description = ""
+authors = ["arkptz <arkptz@gmail.com>", "dnstkrv"]
+readme = "README.md"
+packages = [{ include = "**/*.py", from = "." }]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pydantic = "^2.8.2"
+pydantic-settings = "^2.4.0"
+aiogram = "^3.12.0"
+colorlog = "^6.8.2"
+[tool.poetry.group.dev.dependencies]
+
+black = "^24.4.2"
+isort = "^5.13.2"
+pytest = "^8.2.2"
+flake8 = "^7.1.0"
+mypy = "^1.10.1"
+pre-commit = "^3.7.1"
+pyproject-pre-commit = "^0.1.10"
+pylint = "^3.2.5"
+autoflake = "^2.3.1"
+autopep8 = "^2.3.1"
+httpx = "^0.27.0"
+
+[tool.pyright]
+reportUnknownMemberType = "none"
+reportMissingTypeStubs = "none"
+reportPrivateUsage = "none"
+[tool.autoflake]
+remove-all-unused-imports = true
+expand-star-imports = true
+remove-unused-variables = true
+remove-duplicate-keys = true
+[tool.autopep8]
+ignore = "E203,E501,W503"
+recursive = true
+# in-place = true
+aggresive = 3
+# exclude = "db_models/*, ./integrations-sdk, ./development/*.py, ./dist, ./.venv, .mypy_cache, __pycache__,.github,.git,*OLD*"
+
+[tool.isort]
+profile = "black"
+py_version = 39
+line_length = 120
+length_sort = true
+skip = [".gitignore", ".dockerignore"]
+
+
+[tool.black]
+line-length = 120
+[tool.bandit]
+targets = "."
+exclude = "./telegram4kvas/tests/*"
+
+[tool.mypy]
+files = "./telegram4kvas/"
+exclude = 'tests/.*'
+# strict = true
+# warn_return_any = false
+[[tool.mypy.overrides]]
+module = ["log.*", "aiofiles.*"]
+ignore_missing_imports = true
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+ignore_errors = true
+
+[tool.pylint]
+disable = [
+  "C0114", # missing-module-docstring
+  "C0115", # missing-class-docstring
+  "C0116", # missing-function-docstring
+  "E0611", #no-name-in-module
+]
+max-line-length = 120
+ignore = ["tests/"]
+
+[tool.pylint.messages_control]
+max-line-length = 120
+
+[tool.pylint.MASTER]
+init-hook = 'import sys; sys.path.append("./telegram4kvas")'
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
